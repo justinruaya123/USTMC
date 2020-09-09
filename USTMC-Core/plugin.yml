@@ -1,0 +1,28 @@
+main: com.ustmc.core.main
+name: TigerMC
+version: 1.03
+author: Justin Ruaya
+description: Utilities plugin used in TigerMC server.
+
+commands:
+  tigermc:
+    description: Displays plugin version.
+    usage: /ustmc
+  hug:
+    description: Sends a wireless virtual hug to someone! Be sure you're still 5 blocks near, though.
+    usage: /hug <player>
+  poke:
+    description: Pokes a person! Nudge them when they're not paying attention!
+    usage: /poke <player>
+  locate:
+    description: Locates a person by updating the compass.
+    usage: /shoot <player>
+  createshop:
+    description: TO BE DELETED; automates shops for university tower 
+    usage: /createshop <roomnumber>
+  crush:
+    description: Admires a person. He/she won't know until you like each other.
+    usage: /crush <online player>
+  uncrush:
+    description: Deletes a person from your crush list. Make sure the player hasn't change name since you /crush him/her.
+    usage: /uncrush <player>

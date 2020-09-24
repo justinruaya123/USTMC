@@ -1,11 +1,8 @@
 package com.ustmc.social;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -13,18 +10,15 @@ import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
-import com.ustmc.core.ConfigManager;
-import com.ustmc.core.Utils;
 import com.ustmc.core.main;
+import com.ustmc.players.TigerPlayer;
+import com.ustmc.utils.Utils;
 
 public class SocialCommands implements CommandExecutor {
 
 	main mainPlugin;
-	// CRUSHER, CRUSHES
-	Map<UUID, HashSet<UUID>> crushList = new HashMap<UUID, HashSet<UUID>>();
 
 	public SocialCommands(main m) {
 		this.mainPlugin = m;
@@ -81,39 +75,28 @@ public class SocialCommands implements CommandExecutor {
 		} else if (label.equalsIgnoreCase("crush")) {
 			if (sender instanceof Player) {
 				Player p = (Player) sender;
-				if (args.length != 1) {
-					sender.sendMessage(Utils.announceToChat("Usage: /crush <player>"));
+				if (args.length == 0) {
+					sender.sendMessage(Utils.announceToChat("Usage: /crush <add|remove|list> <player>"));
 					return true;
 				} else {
-					Player crush = Bukkit.getPlayer(args[0]);
+					if (args[0].equalsIgnoreCase("add")) {
+						UUID crush = TigerPlayer.getUUIDFromName(args[1]);
+					} else if (args[0].equalsIgnoreCase("remove")) {
+
+					} else if (args[0].equalsIgnoreCase("list")) {
+
+					} else {
+						sender.sendMessage(Utils.announceToChat("Usage: /crush <add|remove|list> <player>"));
+						return true;
+					}
+
+					Player crush = Bukkit.getPlayer(args[1]);
 					if (crush != null) {
 						if (!crush.getUniqueId().equals(p.getUniqueId())) {
-							if (crushList.containsKey(p.getUniqueId())) {
-								HashSet<UUID> uuidList = crushList.get(p.getUniqueId());
-								boolean duplicate = false;
-								for (UUID cloop : uuidList) {
-									if (cloop.equals(crush.getUniqueId())) {
-										duplicate = true;
-										p.sendMessage(Utils.announceToChat("You already like " + ChatColor.GOLD
-												+ crush.getName() + ChatColor.RED + "!"));
-										break;
-									}
-								}
-								if (!duplicate) {
-									uuidList.add(crush.getUniqueId());
-									crushList.put(p.getUniqueId(), uuidList);
-									checkCrush(p, crush);
-								}
+							// Crush found
 
-								uuidList = null;
-							} else {
-								HashSet<UUID> list = new HashSet<UUID>();
-								list.add(crush.getUniqueId());
-								crushList.put(p.getUniqueId(), list);
-								checkCrush(p, crush);
-							}
-							saveCrushes();
-							restoreCrushes();
+							p.sendMessage(Utils.announceToChat(
+									"You already like " + ChatColor.GOLD + crush.getName() + ChatColor.RED + "!"));
 							return true;
 						} else {
 							sender.sendMessage(Utils.announceToChat("It's nice to love yourself, but no."));
@@ -158,39 +141,6 @@ public class SocialCommands implements CommandExecutor {
 
 		}
 		return false;
-	}
-
-	public void saveCrushes() {
-		Bukkit.getServer().getLogger().info("Attempting to save crushes");
-		for (Map.Entry<UUID, HashSet<UUID>> entry : crushList.entrySet()) {
-			ConfigManager.getPlayersConfig().set("data.players.crushes." + entry.getKey().toString(),
-					uuidToStringArray(entry.getValue()));
-		}
-		ConfigManager.save();
-	}
-
-	public void restoreCrushes() {
-		crushList = new HashMap<UUID, HashSet<UUID>>();
-		if (ConfigManager.getPlayersConfig().getKeys(false).size() == 0)
-			return;
-		Bukkit.getServer().getLogger().info("Attempting to load crushes");
-		try {
-			ConfigurationSection section = ConfigManager.getPlayersConfig()
-					.getConfigurationSection("data.players.crushes");
-			Set<String> index = section.getKeys(false);
-			for (String s : index) {
-				UUID admirer = UUID.fromString(s);
-				List<String> crushes = ConfigManager.getPlayersConfig().getStringList("data.players.crushes." + s);
-				HashSet<UUID> crushFinal = new HashSet<UUID>();
-				for (String crush : crushes) {
-					crushFinal.add(UUID.fromString(crush));
-				}
-				crushList.put(admirer, crushFinal);
-			}
-		} catch (Exception e) {
-
-		}
-		Bukkit.getServer().getLogger().info("[TigerMC] loaded " + crushList.keySet().size() + " players with crushes");
 	}
 
 	public void checkCrush(Player p, Player crush) {

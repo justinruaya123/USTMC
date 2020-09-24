@@ -1,20 +1,22 @@
 main: com.ustmc.core.main
 name: TigerMC
-version: 1.03
+version: 1.10
 author: Justin Ruaya
-description: Utilities plugin used in TigerMC server.
+depend: [WorldGuard]
+description: Utilities plugin used in the UST Minecraft server.
 
 commands:
   tigermc:
-    description: Displays plugin version.
-    usage: /ustmc
+    description: Displays plugin version or reload.
+    usage: /tigermc (reload) 
+    permission: tigermc.main.reload
   hug:
     description: Sends a wireless virtual hug to someone! Be sure you're still 5 blocks near, though.
     usage: /hug <player>
   poke:
     description: Pokes a person! Nudge them when they're not paying attention!
     usage: /poke <player>
-  locate:
+  trackplayer:
     description: Locates a person by updating the compass.
     usage: /shoot <player>
   createshop:
@@ -26,3 +28,22 @@ commands:
   uncrush:
     description: Deletes a person from your crush list. Make sure the player hasn't change name since you /crush him/her.
     usage: /uncrush <player>
+  createblock:
+    description: Creates a block for a player. Requires worldguard commands.
+    usage: /createblock <PLAYER NAME>
+  generateplots:
+    description: Generate plots. Requires OP.
+    usage: /generateplots
+  bgjoin:
+    description: Join the game. You can't unqueue :p
+    usage: /bgjoin
+    
+permissions:
+  tigermc.core.reload:
+   description: Allows people to reload the plugin.
+   default: op
+  tigermc.*:
+   description: Allows all permission-bound commands to be executed.
+   default: op
+   children:
+     tigermc.core.reload: true

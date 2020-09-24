@@ -1,4 +1,4 @@
-package com.ustmc.core;
+package com.ustmc.utils;
 
 import java.io.File;
 import java.io.IOException;
@@ -7,6 +7,8 @@ import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+
+import com.ustmc.core.main;
 
 public class ConfigManager {
 	private static main mainPlugin = null;
@@ -37,12 +39,12 @@ public class ConfigManager {
 		if (!playersFile.exists()) {
 			try {
 				playersFile.createNewFile();
-				playersFile.mkdir();
 				mainPlugin.getLogger().log(Level.CONFIG, "[TigerMC] Created 'playerdata.yml'!");
 			} catch (IOException e) {
 				mainPlugin.getLogger().log(Level.SEVERE, "[TigerMC] Could NOT create 'playerdata.yml'!");
 				e.printStackTrace();
 			}
+
 		}
 		playersCFG = YamlConfiguration.loadConfiguration(playersFile);
 	}
@@ -52,7 +54,6 @@ public class ConfigManager {
 		if (!mainFile.exists()) {
 			try {
 				mainFile.createNewFile();
-				mainFile.mkdir();
 				mainPlugin.getLogger().log(Level.CONFIG, "[TigerMC] Created 'main.yml'!");
 			} catch (IOException e) {
 				mainPlugin.getLogger().log(Level.SEVERE, "[TigerMC] Could NOT create 'main.yml'!");

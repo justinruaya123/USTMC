@@ -82,7 +82,6 @@ public class BuildingGames implements CommandExecutor, TabCompleter, Listener, R
 		return returnString;
 	}
 
-	@SuppressWarnings("unused")
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if (label.equalsIgnoreCase("createblock")) {

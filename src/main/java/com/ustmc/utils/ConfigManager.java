@@ -75,7 +75,7 @@ public class ConfigManager {
 		try {
 			playersCFG.save(playersFile);
 		} catch (Exception e) {
-			mainPlugin.getLogger().log(Level.SEVERE, "[TigerMC] Could NOT save 'main.yml'!");
+			Utils.consoleWarn("Could NOT save 'main.yml'!");
 		}
 	}
 

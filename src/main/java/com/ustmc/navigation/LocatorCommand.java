@@ -1,5 +1,9 @@
 package com.ustmc.navigation;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -19,10 +23,6 @@ import org.bukkit.potion.PotionEffectType;
 import com.ustmc.core.main;
 import com.ustmc.utils.ConfigManager;
 import com.ustmc.utils.Utils;
-
-import net.md_5.bungee.api.ChatColor;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 
 public class LocatorCommand implements CommandExecutor, Runnable {
 
@@ -54,14 +54,28 @@ public class LocatorCommand implements CommandExecutor, Runnable {
 
 	@Override
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+		if (label.equalsIgnoreCase("test")) {
+			if (sender instanceof Player && sender.isOp()) {
+				Player p = (Player) sender;
+				if (args.length == 0)
+					return false;
+				MessageDigest digest;
+				try {
+					digest = MessageDigest.getInstance("SHA-256");
+					byte[] hash = digest.digest(args[0].getBytes(StandardCharsets.UTF_8));
+					String encoded = Base64.getEncoder().encodeToString(hash);
+					p.sendMessage("Input: " + args[0] + "| Output: " + encoded);
+				} catch (NoSuchAlgorithmException e) {
+					e.printStackTrace();
+				}
 
-		if (label.equalsIgnoreCase("trackplayer")) {
-			if (sender instanceof Player) {
+			}
+		} else if (label.equalsIgnoreCase("trackplayer")) {
+			if (!(sender instanceof Player)) {
 				sender.sendMessage(Utils.announceToChat("Wait, you're not a player!"));
 				return false;
 			}
 			Player p = (Player) sender;
-			p.set
 			if (args.length != 0) {
 				double maxDistance = 0;
 				UUID farthestPlayer = null;
@@ -150,10 +164,9 @@ public class LocatorCommand implements CommandExecutor, Runnable {
 									+ " found you using a Locator Compass!");
 							locating.remove(locator.getUniqueId());
 						}
-						locator.spigot().sendMessage(ChatMessageType.ACTION_BAR, new TextComponent(ChatColor.GOLD
-								+ target.getName() + ChatColor.GREEN + " is "
+						locator.sendActionBar(ChatColor.GOLD + target.getName() + ChatColor.GREEN + " is "
 								+ (float) (Math.round(locator.getLocation().distance(target.getLocation()) * 100)) / 100
-								+ " blocks away."));
+								+ " blocks away.");
 						locator.setCompassTarget(target.getLocation());
 						// locator.addPotionEffect(new PotionEffect(PotionEffectType.NIGHT_VISION, 0,
 						// 1));
@@ -165,8 +178,7 @@ public class LocatorCommand implements CommandExecutor, Runnable {
 				} else {
 					OfflinePlayer targetOffline = Bukkit.getOfflinePlayer(locating.get(uuid));
 					if (targetOffline != null) {
-						locator.spigot().sendMessage(ChatMessageType.ACTION_BAR,
-								new TextComponent(ChatColor.RED + targetOffline.getName() + " is offline."));
+						locator.sendActionBar(ChatColor.RED + targetOffline.getName() + " is offline.");
 					}
 				}
 

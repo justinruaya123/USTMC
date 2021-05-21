@@ -1,0 +1,7 @@
+locator:
+  interval: 20
+whitelist:
+  url:
+  column-colleges:
+  column-players
+  update-delay

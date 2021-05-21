@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.bukkit.Bukkit;
@@ -12,19 +13,20 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 
+import com.ustmc.players.whitelist.WhitelistManager;
 import com.ustmc.utils.ConfigManager;
 import com.ustmc.utils.Utils;
-
-import net.md_5.bungee.api.ChatColor;
 
 public class TigerPlayer {
 
 	private static Map<UUID, TigerPlayer> players;
+	private static Map<String, UUID> loadedPlayers;
 
 	private UUID uuid;
 	private HashSet<UUID> crushes;
 	private ConfigurationSection config;
 	private String configIndex;
+	private College college;
 
 	private HashMap<String, Boolean> booleanList;
 	private HashMap<String, Double> doubleList;
@@ -32,29 +34,7 @@ public class TigerPlayer {
 	private HashMap<String, String> stringList;
 
 	public TigerPlayer(Player player) {
-		this.uuid = player.getUniqueId();
-		crushes = new HashSet<UUID>();
-		booleanList = new HashMap<String, Boolean>();
-		doubleList = new HashMap<String, Double>();
-		integerList = new HashMap<String, Integer>();
-		stringList = new HashMap<String, String>();
-		configIndex = "data.players." + this.uuid.toString();
-
-		if (ConfigManager.getPlayersConfig()
-				.isConfigurationSection("data.players." + player.getUniqueId().toString())) {
-			config = ConfigManager.getPlayersConfig().getConfigurationSection(configIndex);
-		} else {
-			config = ConfigManager.getPlayersConfig().createSection(configIndex);
-			for (DefaultPlayerBoolean value : DefaultPlayerBoolean.values()) {
-				setBool(value.getConfigIndex(), value.getValue(), false);
-			}
-			for (DefaultPlayerInteger value : DefaultPlayerInteger.values()) {
-				setInt(value.getConfigIndex(), value.getValue(), false);
-			}
-			setString("Name", player.getName(), false);
-		}
-		TigerPlayer.getPlayers().put(this.uuid, this);
-		saveToPlayersConfig();
+		this(Bukkit.getOfflinePlayer(player.getUniqueId()));
 	}
 
 	public TigerPlayer(OfflinePlayer player) {
@@ -64,8 +44,7 @@ public class TigerPlayer {
 		doubleList = new HashMap<String, Double>();
 		integerList = new HashMap<String, Integer>();
 		stringList = new HashMap<String, String>();
-		configIndex = "data.players." + this.uuid.toString();
-
+		configIndex = "data.players." + uuid.toString();
 		if (ConfigManager.getPlayersConfig()
 				.isConfigurationSection("data.players." + player.getUniqueId().toString())) {
 			config = ConfigManager.getPlayersConfig().getConfigurationSection(configIndex);
@@ -79,12 +58,13 @@ public class TigerPlayer {
 			}
 			setString("Name", player.getName(), false);
 		}
+		loadToMemory();
+		if (!stringList.containsKey("College")) {
+			setString("College", WhitelistManager.getWhitelist().get(player.getName()), false);
+		}
+		college = College.getCollegeComplete(stringList.get("College"));
 		TigerPlayer.getPlayers().put(this.uuid, this);
 		saveToPlayersConfig();
-	}
-
-	public static void loadPlayers() {
-		players = new HashMap<UUID, TigerPlayer>();
 	}
 
 	public boolean addCrush(UUID crush) {
@@ -255,6 +235,62 @@ public class TigerPlayer {
 			ConfigManager.savePlayers();
 	}
 
+	public boolean loadDataInt() {
+		for (String str : config.getConfigurationSection("int").getKeys(true)) {
+			if (!config.isInt("int." + str)) {
+				continue;
+			}
+			integerList.put(str, config.getInt("int." + str));
+		}
+		return true;
+	}
+
+	public boolean loadDataString() {
+		for (String str : config.getConfigurationSection("string").getKeys(true)) {
+			if (!config.isString("string." + str)) {
+				continue;
+			}
+			stringList.put(str, config.getString("string." + str));
+		}
+		return true;
+	}
+
+	public boolean loadDataDouble() {
+		for (String str : config.getConfigurationSection("double").getKeys(true)) {
+			if (!config.isDouble("double." + str)) {
+				continue;
+			}
+			doubleList.put(str, config.getDouble("double." + str));
+		}
+		return true;
+	}
+
+	public boolean loadDataBoolean() {
+		for (String str : config.getConfigurationSection("bool").getKeys(true)) {
+			if (!config.isBoolean("bool." + str)) {
+				continue;
+			}
+			booleanList.put(str, config.getBoolean("bool." + str));
+		}
+		return true;
+	}
+
+	public Map<String, Boolean> getBooleanList() {
+		return booleanList;
+	}
+
+	public Map<String, Double> getDoubleList() {
+		return doubleList;
+	}
+
+	public Map<String, Integer> getIntList() {
+		return integerList;
+	}
+
+	public Map<String, String> getStringList() {
+		return stringList;
+	}
+
 	public void saveToPlayersConfig() {
 		saveBool();
 		saveDouble();
@@ -279,6 +315,10 @@ public class TigerPlayer {
 		return Bukkit.getServer().getPlayer(uuid);
 	}
 
+	public College getCollege() {
+		return college;
+	}
+
 	public ConfigurationSection getConfigPath() {
 		return config;
 	}
@@ -291,31 +331,69 @@ public class TigerPlayer {
 		return uuid;
 	}
 
+	public boolean loadToMemory() {
+		try {
+			loadDataBoolean();
+			loadDataDouble();
+			loadDataInt();
+			loadDataString();
+			return true;
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
 	// STATIC METHODS
 
 	public static Map<UUID, TigerPlayer> getPlayers() {
 		return players;
 	}
 
-	public static List<UUID> getAllPlayers() {
-		ArrayList<UUID> ids = new ArrayList<UUID>();
-		for (String str : ConfigManager.getPlayersConfig().getConfigurationSection("data.players").getKeys(false)) {
-			ids.add(UUID.fromString(str));
+	public static void initializePlayers() {
+		players = new HashMap<UUID, TigerPlayer>();
+		loadedPlayers = new HashMap<String, UUID>();
+		if (ConfigManager.getPlayersConfig().isConfigurationSection("data.players")) {
+			if (ConfigManager.getPlayersConfig().getConfigurationSection("data.players").getKeys(false).size() != 0) {
+				for (String str : ConfigManager.getPlayersConfig().getConfigurationSection("data.players")
+						.getKeys(false)) {
+					loadedPlayers.put(
+							ConfigManager.getPlayersConfig().getString("data.players." + str + ".string.Name"),
+							UUID.fromString(str));
+				}
+			}
+		} else {
+			ConfigManager.getPlayersConfig().createSection("data.players");
+			ConfigManager.savePlayers();
 		}
-		return ids;
+		Bukkit.getServer().getLogger().info(ChatColor.GREEN + "Loaded " + loadedPlayers.size() + " data!");
 	}
 
-	public static UUID getUUIDFromName(String preciseName) {
-		if (!ConfigManager.getPlayersConfig().isConfigurationSection("data.players")) {
-			return null;
-		}
-		for (String str : ConfigManager.getPlayersConfig().getConfigurationSection("data.players").getKeys(false)) {
-			if (ConfigManager.getPlayersConfig().getString("data.players." + str + ".string.Name").toLowerCase()
-					.startsWith(preciseName.toLowerCase())) {
-				return UUID.fromString(str);
+	public static Set<String> getAllPlayerNames() {
+		return loadedPlayers.keySet();
+	}
+
+	public static UUID getUUIDFromNameSearch(String preciseName) {
+		for (String str : getAllPlayerNames()) {
+			if (str.toLowerCase().startsWith(preciseName.toLowerCase())) {
+				return loadedPlayers.get(str);
 			}
 		}
 		return Utils.INVALID_UUID;
+	}
+
+	public static UUID getUUIDFromNameExact(String preciseName) {
+		if (loadedPlayers.containsKey(preciseName)) {
+			return loadedPlayers.get(preciseName);
+		}
+		return Utils.INVALID_UUID;
+	}
+
+	public static Map<String, UUID> getIndexedPlayers() {
+		return loadedPlayers;
+	}
+
+	public static boolean isPlayer(String candidate) {
+		return loadedPlayers.containsKey(candidate);
 	}
 
 }

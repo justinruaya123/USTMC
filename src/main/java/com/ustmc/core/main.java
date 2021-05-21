@@ -1,29 +1,35 @@
 package com.ustmc.core;
 
+import java.util.Map.Entry;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import com.sk89q.worldguard.WorldGuard;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
-import com.sk89q.worldguard.protection.flags.Flag;
-import com.sk89q.worldguard.protection.flags.StateFlag;
-import com.sk89q.worldguard.protection.flags.registry.FlagConflictException;
-import com.sk89q.worldguard.protection.flags.registry.FlagRegistry;
+import com.ustmc.core.CoreCommandListener;
 import com.ustmc.navigation.LocatorCommand;
+import com.ustmc.players.College;
+import com.ustmc.players.CommandTigerplayer;
 import com.ustmc.players.TigerListener;
+import com.ustmc.players.TigerPlayer;
+import com.ustmc.players.Uniform;
+import com.ustmc.players.whitelist.WhitelistManager;
+import com.ustmc.players.whitelist.WhitelistScheduler;
 import com.ustmc.social.SocialCommands;
+import com.ustmc.social.SocialListener;
+import com.ustmc.tabs.CommandTabCrush;
 import com.ustmc.utils.ConfigManager;
+import com.ustmc.utils.Console;
 import com.ustmc.utils.Utils;
 
-import net.md_5.bungee.api.ChatColor;
 import net.milkbowl.vault.economy.Economy;
 
 public class main extends JavaPlugin {
@@ -31,46 +37,105 @@ public class main extends JavaPlugin {
 	// PLUGINS
 	SocialCommands socialCommands;
 	LocatorCommand locatorCommand;
+	SocialListener socialListener;
+	CommandTigerplayer commandTigerplayer;
+	Uniform uniformCommand;
+	TigerListener tigerListener;
+	CoreCommandListener commandListener;
 	//
-	public static String version = "1.10";
-
+	public static String version = "1.22";
+	public static main mainInstance;
 	// VAULT INTEGRATION
 	private static final Logger log = Logger.getLogger("Minecraft");
 	private static Economy econ = null;
 
 	// PLUGINS
 	private static WorldGuardPlugin wg;
-	public static StateFlag PLOT_AVAILABLE;
+//	private static SkinsRestorer skinsRestorer;
+//	private static SkinsRestorerBukkitAPI skinsRestorerBukkitAPI;
 
 	// =========================
 	@Override
 	public void onEnable() {
-		Bukkit.getPluginManager().addPermission(new Permission("tigermc.reload"));
+		main.mainInstance = this;
+		Console.enable();
+		Utils.initialize();
+		College.initialize();
 		if (!getDataFolder().exists()) {
 			getDataFolder().mkdir();
 		}
 		ConfigManager.setPlugin(this);
-
+		try {
+			loadPlugins();
+		} catch (Exception e) {
+			Console.severe("There was a problem in loading dependencies!");
+			e.printStackTrace();
+		}
+		loadWhitelist();
+		if (ConfigManager.getPlayersConfig().isConfigurationSection("data.players")) {
+			TigerPlayer.initializePlayers();
+		} else {
+			ConfigManager.getPlayersConfig().createSection("data.players");
+		}
+		commandTigerplayer = new CommandTigerplayer(this);
 		socialCommands = new SocialCommands(this);
 		locatorCommand = new LocatorCommand(this);
+		socialListener = new SocialListener(this);
+		uniformCommand = new Uniform(this);
+		tigerListener = new TigerListener(this);
+		commandListener = new CoreCommandListener(this);
 		// LISTENERS
-		// Bukkit.getServer().getPluginManager().registerEvents(new
-		// SocialListener(this), this);
-		Bukkit.getServer().getPluginManager().registerEvents(new TigerListener(this), this);
+		Bukkit.getServer().getPluginManager().registerEvents(tigerListener, this);
+		Bukkit.getServer().getPluginManager().registerEvents(socialListener, this);
+		Bukkit.getServer().getPluginManager().registerEvents(uniformCommand, this);
 		//
 		getCommand("hug").setExecutor(socialCommands);
 		getCommand("poke").setExecutor(socialCommands);
-		// getCommand("crush").setExecutor(socialCommands);
+		getCommand("fuck").setExecutor(socialCommands);
+		getCommand("crush").setExecutor(socialCommands);
+		getCommand("sanaol").setExecutor(socialCommands);
 		// getCommand("uncrush").setExecutor(socialCommands);
-		// getCommand("trackplayer").setExecutor(locatorCommand);
-		BuildingGames bg = new BuildingGames(this);
-		getCommand("createblock").setExecutor(bg);
-		getCommand("generateplots").setExecutor(bg);
-		getCommand("joinhg").setExecutor(bg);
-		Bukkit.getServer().getPluginManager().registerEvents(bg, this);
-		// TAB EXECUTORS
-		// getCommand("crush").setTabCompleter(new CommandTabCrush(this));
+		getCommand("trackplayer").setExecutor(locatorCommand);
+		getCommand("test").setExecutor(locatorCommand);
 
+		// MAIN OR CORE UST FUNCTIONALITY
+		getCommand("bell").setExecutor(commandListener);
+		//
+//		BuildingGames bg = new BuildingGames(this);
+//		getCommand("createblock").setExecutor(bg);
+//		getCommand("generateplots").setExecutor(bg);
+//		getCommand("joinbg").setExecutor(bg);
+//		getCommand("bg").setExecutor(bg);
+//		getCommand("enablewings").setExecutor(bg);
+//		Bukkit.getServer().getPluginManager().registerEvents(bg, this);
+		// Tiger players
+		getCommand("tigerplayer").setExecutor(commandTigerplayer);
+		getCommand("uniform").setExecutor(uniformCommand);
+		// TAB EXECUTORS
+		getCommand("crush").setTabCompleter(new CommandTabCrush(this));
+		getCommand("tigerplayer").setTabCompleter(commandTigerplayer);
+		getCommand("fuck").setTabCompleter(socialCommands);
+		// Registering all players online
+		if (Bukkit.getOnlinePlayers().size() != 0) {
+			for (Player p : Bukkit.getOnlinePlayers()) {
+				tigerListener.register(p);
+			}
+		}
+	}
+
+	@Override
+	public void onDisable() {
+		log.info(String.format("[%s] Disabled Version %s", getDescription().getName(), getDescription().getVersion()));
+		if (ConfigManager.getMainConfiguration().getString("whitelist.url") != "<insert>") {
+			WhitelistManager.loadManager();
+		}
+		for (Entry<UUID, TigerPlayer> entry : TigerPlayer.getPlayers().entrySet()) {
+			entry.getValue().saveToPlayersConfig();
+		}
+		ConfigManager.save();
+	}
+
+	public void loadPlugins() {
 		// VAULT
 		if (!setupEconomy()) {
 			log.severe(String.format("[%s] - Disabled due to no Vault dependency found!", getDescription().getName()));
@@ -88,35 +153,46 @@ public class main extends JavaPlugin {
 		} else {
 			wg = (WorldGuardPlugin) wgplugin;
 		}
-		FlagRegistry registry = WorldGuard.getInstance().getFlagRegistry();
-		try {
-			// create a flag with the name "my-custom-flag", defaulting to true
-			StateFlag flag = new StateFlag("plot-available", true);
-			registry.register(flag);
-			main.PLOT_AVAILABLE = flag; // only set our field if there was no error
-		} catch (FlagConflictException e) {
-			// some other plugin registered a flag by the same name already.
-			// you can use the existing flag, but this may cause conflicts - be sure to
-			// check type
-			Flag<?> existing = registry.get("plot-available");
-			if (existing instanceof StateFlag) {
-				main.PLOT_AVAILABLE = (StateFlag) existing;
-			} else {
-				// types don't match - this is bad news! some other plugin conflicts with you
-				// hopefully this never actually happens
+		// SkinsRestorer
+		// Connecting to the main SkinsRestorer API
+//		try {
+//			skinsRestorer = JavaPlugin.getPlugin(SkinsRestorer.class);
+//			Console.info(skinsRestorer.toString());
+//
+//			// Connecting to Bukkit API for applying the skin
+//			skinsRestorerBukkitAPI = skinsRestorer.getSkinsRestorerBukkitAPI();
+//			Console.info(skinsRestorerBukkitAPI.toString());
+//		} catch (Exception e) {
+//			Console.warn("Error loading SkinsRestorer");
+//			e.printStackTrace();
+//		}
+	}
+
+	public void loadWhitelist() {
+		if (!ConfigManager.getMainConfiguration().isConfigurationSection("whitelist")) {
+			ConfigManager.getMainConfiguration().set("whitelist.enabled", false);
+			ConfigManager.getMainConfiguration().set("whitelist.url", "<insert>");
+			ConfigManager.getMainConfiguration().set("whitelist.column-colleges", 1);
+			ConfigManager.getMainConfiguration().set("whitelist.column-name", 2);
+			ConfigManager.getMainConfiguration().set("whitelist.update-delay", 5);
+			ConfigManager.getMainConfiguration().set("whitelist.message",
+					"%player% is not registered! Kindly visit www.tigermc.org to register. If you are not a new player, kindly register again. If you have changed your name, kindly update the GForm.");
+			ConfigManager.saveMain();
+			Utils.consoleInfo("Created new Whitelist configuration! Please update the file with the appropriate URL.");
+		}
+		if (ConfigManager.getMainConfiguration().getString("whitelist.url") == "<insert>") {
+			Utils.consoleWarn("URL is not yet set! Whitelist won't work!");
+			WhitelistManager.setEnabled(false);
+		} else {
+			if (ConfigManager.getMainConfiguration().getBoolean("whitelist.enabled")) {
+				WhitelistManager.loadManager();
+				WhitelistScheduler.loadScheduler(this);
+				WhitelistManager.setEnabled(true);
 			}
 		}
-		// LISTENERS
-
-		Bukkit.getServer().getPluginManager().registerEvents(new TigerListener(this), this);
 	}
 
 	@Override
-	public void onDisable() {
-		log.info(String.format("[%s] Disabled Version %s", getDescription().getName(), getDescription().getVersion()));
-		ConfigManager.save();
-	}
-
 	public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 		if (label.equalsIgnoreCase("tigermc")) {
 			if (sender instanceof Player) {
@@ -171,5 +247,17 @@ public class main extends JavaPlugin {
 	public static WorldGuardPlugin getWorldGuard() {
 		return wg;
 	}
+
+	public static main getMainPlugin() {
+		return mainInstance;
+	}
+
+//	public static SkinsRestorer getSR() {
+//		return skinsRestorer;
+//	}
+//
+//	public static SkinsRestorerBukkitAPI getSRBukkit() {
+//		return skinsRestorerBukkitAPI;
+//	}
 	// ===================
 }
